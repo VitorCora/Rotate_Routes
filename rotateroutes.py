@@ -1,0 +1,319 @@
+import sys
+import boto3
+import json
+from datetime import datetime
+
+def create_log_file(filename):
+    #Acquire Time
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    #Set Status
+    status="INFO"
+    #Set message
+    message = "Log file created successfully"
+    # Configure logging
+    file_path = filename+".log"
+    # Open the file in write mode ('w')
+    with open(file_path, "w") as file:
+        # Perform operations on the file
+        file.write(f"{current_time} {status} {message}\n")
+    # Close the file
+    file.close()
+
+def log_to_logfile(filename, message, status):
+    #Acquire Time
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    # Configure logging
+    file_path = filename+".log"
+    # Open the file in append mode ('a')
+    with open(file_path, "a") as file:
+        # Perform operations on the file
+        file.write(f"{current_time} {status} {message}\n")
+    # Close the file
+    file.close()
+  
+def create_s3_folder(s3name, filename, account_id, vpc_id):
+    # Create an S3 client
+    s3 = boto3.client('s3')
+    # Configure logging
+    file_path = filename+".log"
+    # Create the folder key with a trailing slash
+    folder_key = account_id +'/'+ vpc_id+'/'+file_path
+    print(folder_key)
+    #Acquire Time
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    #Set Status
+    status="INFO"
+    #Set message
+    message = "Log folder created successfully for account id="+account_id+" and vpc id="+vpc_id
+    # Open the file in append mode ('a')
+    with open(file_path, "a") as file:
+        # Perform operations on the file
+        file.write(f"{current_time} {status} {message}\n")
+    # Close the file
+    file.close()
+    # Create the folder in the bucket
+    s3.upload_file(file_path, s3name, folder_key)
+
+def upload_to_s3(s3name, filename, account_id, vpc_id):
+    # Create an S3 client
+    s3 = boto3.client('s3')
+    # Configure logging
+    file_path = filename+".log"
+    # Create the folder key with a trailing slash
+    folder_key = account_id +'/'+ vpc_id+'/'+file_path  
+    s3.upload_file(file_path, s3name, folder_key)
+    print("File uploaded to S3 bucket.")
+
+def get_account_id():
+    sts_client = boto3.client('sts')
+    response = sts_client.get_caller_identity()
+    account_id = response['Account']
+    return account_id
+
+def get_vpc_id(subnet_id):
+    ec2_client = boto3.client('ec2')
+    response = ec2_client.describe_subnets(SubnetIds=[subnet_id])
+    subnet = response['Subnets'][0]
+    vpc_id = subnet['VpcId']
+    return vpc_id
+
+## Developing
+def get_region(subnet_id):
+    ec2_client = boto3.client('ec2')
+    response = ec2_client.describe_subnets(SubnetIds=[subnet_id])
+    subnet = response['Subnets'][0]
+    Region = subnet['Region']
+    return region
+  
+def check_vpc_id(vpc_id_0, vpc_id_1, filename):
+    if vpc_id_0 == vpc_id_1:
+        status = "INFO"
+        message="The VPC IDs are equal."
+        print(message)
+        log_to_logfile(filename,message,status)
+    else:
+        status = "ERROR"
+        message="The VPC IDs are not equal."
+        print(message)
+        log_to_logfile(filename,message,status)
+        status = "ERROR"
+        message="Exiting program."
+        print(message)
+        log_to_logfile(filename,message,status)
+        sys.exit()
+
+def check_nsendpoint(vpcens, filename, vpcid):
+    # Create an EC2 client
+    ec2 = boto3.client('ec2')
+    # Describe the VPC endpoint
+    response = ec2.describe_vpc_endpoints(VpcEndpointIds=[vpcens])
+    # Get the VPC ID associated with the VPC endpoint
+    vpcens_vpc_id = response['VpcEndpoints'][0]['VpcId']
+    # Compare the VPC ID with the desired VPC ID
+    if vpcens_vpc_id == vpcid:
+        print("VPC endpoint belongs to the right VPC ID.")
+        status = "INFO"
+        message="The NS Endpoint belongs to the same VPC as the target Subnets (vpc id="+vpcid+")."
+        print(message)
+        log_to_logfile(filename,message,status)
+    else:
+        print("VPC endpoint does not belong to the right VPC ID.")
+        status = "INFO"
+        message="The NS Endpoint belongs to a different VPC (Subnets vpc id="+vpcid+"Endpoint vpc id="+vpcens_vpc_id+")."
+        print(message)
+        log_to_logfile(filename,message,status)
+        status = "ERROR"
+        message="Exiting program."
+        print(message)
+        log_to_logfile(filename,message,status)
+        sys.exit()
+
+def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3):
+    ec2_client = boto3.client('ec2')
+    template = {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Resources": {}
+    }
+    vpc_id = None
+    availability_zone = None
+    for subnet_id in subnet_ids:
+        # Remove hyphens from subnet ID
+        sanitized_subnet_id = subnet_id.replace("-", "")
+        # Retrieve the route table ID associated with the subnet
+        response = ec2_client.describe_route_tables(
+            Filters=[
+                {
+                    'Name': 'association.subnet-id',
+                    'Values': [subnet_id]
+                }
+            ]
+        )
+        if 'RouteTables' in response and len(response['RouteTables']) > 0:
+            route_table_id = response['RouteTables'][0]['RouteTableId']
+        else:
+            raise ValueError(f"No route table found for subnet {subnet_id}")
+        # Retrieve the CIDR block and VPC ID for the subnet
+        subnet_response = ec2_client.describe_subnets(
+            Filters=[
+                {
+                    'Name': 'subnet-id',
+                    'Values': [subnet_id]
+                }
+            ]
+        )
+        if 'Subnets' in subnet_response and len(subnet_response['Subnets']) > 0:
+            subnet = subnet_response['Subnets'][0]
+            cidr_block = subnet['CidrBlock']
+            subnet_vpc_id = subnet['VpcId']
+            subnet_az = subnet['AvailabilityZone']
+            if vpc_id is None:
+                vpc_id = subnet_vpc_id
+                availability_zone = subnet_az
+            else:
+                if subnet_vpc_id != vpc_id or subnet_az != availability_zone:
+                    raise ValueError("Subnets are not in the same VPC or Availability Zone")
+        else:
+            raise ValueError(f"No subnet found with ID {subnet_id}")
+        # Create the resources for the route table
+        route_table_resources = {
+            f"RouteTableCopy{sanitized_subnet_id}": {
+                "Type": "AWS::EC2::RouteTable",
+                "Properties": {
+                    "VpcId": {
+                        "Ref": "VpcId"
+                    }
+                }
+            },
+            f"RouteTableAssociation{sanitized_subnet_id}": {
+                "Type": "AWS::EC2::SubnetRouteTableAssociation",
+                "Properties": {
+                    "SubnetId": subnet_id,
+                    "RouteTableId": {
+                        "Ref": f"RouteTableCopy{sanitized_subnet_id}"
+                    }
+                }
+            }
+        }
+        # Add the route table resources to the template
+        template["Resources"].update(route_table_resources)
+        # Fetch existing routes for the route table
+        existing_routes = get_existing_routes(route_table_id, vpces3)
+        # Add routes from subnet 1 to subnet 2 and vice versa
+        route_resources = {
+            f"Route{sanitized_subnet_id}": {
+                "Type": "AWS::EC2::Route",
+                "Properties": {
+                    "RouteTableId": {
+                        "Ref": f"RouteTableCopy{sanitized_subnet_id}"
+                    },
+                    "DestinationCidrBlock": cidr_block,
+                    "VpcEndpointId": vpcen
+                }
+            }
+            for vpcen in vpcens
+        }
+        # Add existing routes to the template
+        if existing_routes:
+            route_resources.update(existing_routes)
+        # Add the route resources to the template
+        template["Resources"].update(route_resources)
+    # Add VPC ID parameter to the template
+    template["Parameters"] = {
+        "VpcId": {
+            "Type": "String",
+            "Default": vpc_id
+        }
+    }
+    status = "INFO"
+    message="AWS Cloudformation template generated successfuly"
+    print(message)
+    log_to_logfile(filename,message,status)
+    return template
+
+def get_existing_routes(route_table_id, vpces3):
+    ec2_client = boto3.client('ec2')
+    response = ec2_client.describe_route_tables(
+        RouteTableIds=[route_table_id]
+    )
+    existing_routes = []
+    for route_table in response['RouteTables']:
+        for route in route_table['Routes']:
+            if (
+                'DestinationCidrBlock' in route
+                and route['DestinationCidrBlock'] != 'local'  # Ignore the local route
+                and 'VpcEndpointId' in route
+                and route['VpcEndpointId'] in vpces3
+                and route.get('DestinationPrefixListId') is None
+                and route['VpcEndpointId'] != route.get('GatewayId')
+            ):
+                existing_routes.append(route)
+    return existing_routes
+
+def get_s3_endpoints(region):
+    client = boto3.client('ec2', region_name=region)
+    response = client.describe_vpc_endpoints()
+    endpoints = response['VpcEndpoints']
+    s3_endpoints = [endpoint for endpoint in endpoints if 's3' in endpoint['ServiceName']]
+    return s3_endpoints
+
+def main(vpcens, subnet_ids, s3name):
+    current_time = datetime.now().strftime("%Y%m%d%I%M%p")
+    filename = "Routechange" + current_time
+
+    account_id = get_account_id()
+    vpc_id_0 = get_vpc_id(subnet_ids[0])
+    vpc_id_1 = get_vpc_id(subnet_ids[1])
+
+    create_log_file(filename)
+    create_s3_folder(s3name, filename, vpc_id_0)
+
+    check_vpc_id(vpc_id_0, vpc_id_1, filename)
+    vpcid = vpc_id_0
+
+    if vpcens is None:
+        status = "ERROR"
+        message = "A VPC Endpoint for Network Security wasn't provided."
+        print(message)
+        log_to_logfile(filename, message, status)
+        sys.exit()
+    else:
+        status = "INFO"
+        message = "A VPC Endpoint for Network Security was provided, vpc id=" + vpcens + "."
+        print(message)
+        log_to_logfile(filename, message, status)
+
+    check_nsendpoint(vpcens, filename, account_id, vpcid)
+    
+    region = get_region(vpcid)
+
+    endpoints = get_s3_endpoints(region)
+    for endpoint in endpoints:
+        vpces3.append(endpoint['VpcEndpointId'])
+      
+    status = "INFO"
+    message = "The following S3 VPC Endpoints were found :" + vpces3
+    print(message)
+    log_to_logfile(filename, message, status)
+    upload_to_s3(s3name, filename, account_id, vpc_id)        
+  
+    status = "INFO"
+    message = "Starting Program for account id=" + account_id
+    print(message)
+    log_to_logfile(filename, message, status)
+    upload_to_s3(s3name, filename, account_id, vpc_id)
+    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3)
+    print(json.dumps(template, indent=4))
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python rotateroutes.py <Security_Gwlb_Endpoint> <Subnet_1_ID> <Subnet_1_ID> <S3_Bucket_Name>")
+        sys.exit(1)
+
+    vpcens = sys.argv[1]
+    subnet_id1 = sys.argv[2]
+    subnet_id2 = sys.argv[3]
+    s3name = sys.argv[4]
+
+    subnet_ids = [subnet_id1, subnet_id2]
+
+    main(vpcens, subnet_ids, s3name)
