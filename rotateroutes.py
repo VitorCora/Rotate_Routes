@@ -103,7 +103,7 @@ def check_vpc_id(vpc_id_0, vpc_id_1, filename):
         log_to_logfile(filename,message,status)
         sys.exit()
 
-def check_nsendpoint(vpcens, filename, vpcid):
+def check_nsendpoint(vpcens, filename, account_id, vpcid, s3name):
     # Create an EC2 client
     ec2 = boto3.client('ec2')
     # Describe the VPC endpoint
@@ -117,16 +117,19 @@ def check_nsendpoint(vpcens, filename, vpcid):
         message="The NS Endpoint belongs to the same VPC as the target Subnets (vpc id="+vpcid+")."
         print(message)
         log_to_logfile(filename,message,status)
+        upload_to_s3(s3name, filename, account_id, vpcid)
     else:
         print("VPC endpoint does not belong to the right VPC ID.")
         status = "INFO"
         message="The NS Endpoint belongs to a different VPC (Subnets vpc id="+vpcid+"Endpoint vpc id="+vpcens_vpc_id+")."
         print(message)
         log_to_logfile(filename,message,status)
+        upload_to_s3(s3name, filename, account_id, vpcid)
         status = "ERROR"
         message="Exiting program."
         print(message)
         log_to_logfile(filename,message,status)
+        upload_to_s3(s3name, filename, account_id, vpcid)
         sys.exit()
 
 def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id):
@@ -322,7 +325,7 @@ def main(vpcens, subnet_ids, s3name):
         log_to_logfile(filename, message, status)
         upload_to_s3(s3name, filename, account_id, vpcid)
 
-    check_nsendpoint(vpcens, filename, account_id, vpcid)
+    check_nsendpoint(vpcens, filename, account_id, vpcid, s3name)
     
     region = get_region(vpcid)
 
