@@ -313,14 +313,14 @@ def main(vpcens, subnet_ids, s3name):
         message = "A VPC Endpoint for Network Security wasn't provided."
         print(message)
         log_to_logfile(filename, message, status)
-        upload_to_s3(s3name, filename, account_id, vpc_id)
+        upload_to_s3(s3name, filename, account_id, vpcid)
         sys.exit()
     else:
         status = "INFO"
         message = "A VPC Endpoint for Network Security was provided, vpc id=" + vpcens + "."
         print(message)
         log_to_logfile(filename, message, status)
-        upload_to_s3(s3name, filename, account_id, vpc_id)
+        upload_to_s3(s3name, filename, account_id, vpcid)
 
     check_nsendpoint(vpcens, filename, account_id, vpcid)
     
@@ -341,7 +341,7 @@ def main(vpcens, subnet_ids, s3name):
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
-    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)
+    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpcid)
     print(json.dumps(template, indent=4))
 
 if __name__ == "__main__":
