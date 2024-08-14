@@ -305,9 +305,6 @@ def main(vpcens, subnet_ids, s3name):
     print(json.dumps(template, indent=4))
 
 if __name__ == "__main__":
-    if len(sys.argv) != 8:
-        print("Usage: python --vpcendpoint <VPC_Endpoint_ID> --subnet1 <Subnet1_ID> --subnet2 <Subnet2_ID> --s3bucket <S3Bucket_Name>")
-        sys.exit(1)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--vpcendpoint", help="VPC Endpoit for Trend Network Security")
