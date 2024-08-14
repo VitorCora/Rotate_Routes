@@ -266,7 +266,7 @@ def main(vpcens, subnet_ids, s3name):
     vpc_id_1 = get_vpc_id(subnet_ids[1])
 
     create_log_file(filename)
-    create_s3_folder(s3name, filename, vpc_id_0)
+    create_s3_folder(s3name, filename, account_id, vpc_id_0)
 
     check_vpc_id(vpc_id_0, vpc_id_1, filename)
     vpcid = vpc_id_0
