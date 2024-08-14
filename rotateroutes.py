@@ -306,7 +306,7 @@ def main(vpcens, subnet_ids, s3name):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: python rotateroutes.py <Security_Gwlb_Endpoint> <Subnet_1_ID> <Subnet_1_ID> <S3_Bucket_Name>")
+        print("Usage: python --vpcendpoint <VPC_Endpoint_ID> --subnet1 <Subnet1_ID> --subnet2 <Subnet2_ID> --s3bucket <S3Bucket_Name>")
         sys.exit(1)
 
     parser = argparse.ArgumentParser()
