@@ -129,7 +129,7 @@ def check_nsendpoint(vpcens, filename, vpcid):
         log_to_logfile(filename,message,status)
         sys.exit()
 
-def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3):
+def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)):
     ec2_client = boto3.client('ec2')
     template = {
         "AWSTemplateFormatVersion": "2010-09-09",
@@ -152,7 +152,15 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3):
         if 'RouteTables' in response and len(response['RouteTables']) > 0:
             route_table_id = response['RouteTables'][0]['RouteTableId']
         else:
-            raise ValueError(f"No route table found for subnet {subnet_id}")
+            status = "ERROR"
+            message = f"No route table found for subnet {subnet_id}"
+            log_to_logfile(filename, message, status)
+            upload_to_s3(s3name, filename, account_id, vpc_id)
+            raise ValueError(message)
+            message = "Exiting the program"
+            log_to_logfile(filename, message, status)
+            upload_to_s3(s3name, filename, account_id, vpc_id)
+            sys.exit(1)
         # Retrieve the CIDR block and VPC ID for the subnet
         subnet_response = ec2_client.describe_subnets(
             Filters=[
@@ -172,9 +180,36 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3):
                 availability_zone = subnet_az
             else:
                 if subnet_vpc_id != vpc_id or subnet_az != availability_zone:
-                    raise ValueError("Subnets are not in the same VPC or Availability Zone")
+                    status = "ERROR"
+                    message = "Subnets are not in the same VPC or Availability Zone"
+                    log_to_logfile(filename, message, status)
+                    upload_to_s3(s3name, filename, account_id, vpc_id)
+                    raise ValueError(message)
+                    message = "Exiting the program"
+                    log_to_logfile(filename, message, status)
+                    upload_to_s3(s3name, filename, account_id, vpc_id)
+                    sys.exit(1)
+            status = "INFO"
+            message = "Subnets are in the same VPC or Availability Zone"
+            print (message)
+            log_to_logfile(filename, message, status)
+            upload_to_s3(s3name, filename, account_id, vpc_id)
         else:
-            raise ValueError(f"No subnet found with ID {subnet_id}")
+            status = "ERROR"
+            message = f"No subnet found with ID {subnet_id}"
+            log_to_logfile(filename, message, status)
+            upload_to_s3(s3name, filename, account_id, vpc_id)
+            raise ValueError(message)
+            status = "ERROR"
+            message = "Exiting the program"
+            log_to_logfile(filename, message, status)
+            upload_to_s3(s3name, filename, account_id, vpc_id)
+            sys.exit(1)
+        status = "INFO"
+        message = "Subnets are in the same VPC or Availability Zone"
+        print (message)
+        log_to_logfile(filename, message, status)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
         # Create the resources for the route table
         route_table_resources = {
             f"RouteTableCopy{sanitized_subnet_id}": {
@@ -268,6 +303,8 @@ def main(vpcens, subnet_ids, s3name):
     create_log_file(filename)
     create_s3_folder(s3name, filename, account_id, vpc_id_0)
 
+    #Logfile and logfolder created
+    
     check_vpc_id(vpc_id_0, vpc_id_1, filename)
     vpcid = vpc_id_0
 
@@ -276,12 +313,14 @@ def main(vpcens, subnet_ids, s3name):
         message = "A VPC Endpoint for Network Security wasn't provided."
         print(message)
         log_to_logfile(filename, message, status)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
         sys.exit()
     else:
         status = "INFO"
         message = "A VPC Endpoint for Network Security was provided, vpc id=" + vpcens + "."
         print(message)
         log_to_logfile(filename, message, status)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
 
     check_nsendpoint(vpcens, filename, account_id, vpcid)
     
@@ -302,7 +341,7 @@ def main(vpcens, subnet_ids, s3name):
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
-    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3)
+    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)
     print(json.dumps(template, indent=4))
 
 if __name__ == "__main__":
