@@ -129,7 +129,7 @@ def check_nsendpoint(vpcens, filename, vpcid):
         log_to_logfile(filename,message,status)
         sys.exit()
 
-def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)):
+def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id):
     ec2_client = boto3.client('ec2')
     template = {
         "AWSTemplateFormatVersion": "2010-09-09",
