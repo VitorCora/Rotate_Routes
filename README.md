@@ -34,7 +34,7 @@ cd Rotate_Routes
 ## Install the required packages:
 
 ```
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Usage
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 You need to pass the parameters when you run the command:
 
 ```
-python Rotate_Routes.py <VPC_Endpoint_ID> <Subnet1_ID> <Subnet2_ID> <S3Bucket_Name>
+python3 rotateroutes.py --vpcendpoint <VPC_Endpoint_ID> --subnet1 <Subnet1_ID> --subnet2 <Subnet2_ID> --s3bucket <S3Bucket_Name>
 ```
 
 The program will start rotating the routes between the two subnets based on the specified interval.
@@ -59,7 +59,9 @@ Make your changes.
 Commit your changes (git commit -m 'Add some feature').
 Push to the branch (git push origin feature/YourFeature).
 Open a pull request.
-License
+
+## License
+
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Acknowledgments
@@ -67,3 +69,6 @@ Python - The programming language used for this project.
 Your Security Tool - The tool used for traffic interception.
 Contact
 For questions or support, please open an issue in the GitHub repository or contact me at [your-email@example.com].
+
+
+python3 rotateroutes.py --vpcendpoint=vpce-036d90bd427263372 --subnet1=subnet-063e0838ea01c2200 --subnet2=subnet-0919c23bc6e593883 --s3bucket=nsroutelogs
