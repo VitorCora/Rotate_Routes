@@ -311,9 +311,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--vpcendpoint", help="VPC Endpoit for Trend Network Security")
-    parser.add_argument("--subnet1", help="VPC Endpoit for Trend Network Security)
-    parser.add_argument("--subnet2", help="VPC Endpoit for Trend Network Security)
-    parser.add_argument("--s3bucket", help="VPC Endpoit for Trend Network Security)
+    parser.add_argument("--subnet1", help="Source Subnet ID - Public Subnet ID")
+    parser.add_argument("--subnet2", help="Destination Subnet ID - Private Subnet ID")
+    parser.add_argument("--s3bucket", help="S3 bucket where logs will be uploaded to")
     args = parser.parse_args()                                                            
 
     subnet_ids = [args.subnet1, args.subnet2]
