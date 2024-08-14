@@ -309,11 +309,19 @@ if __name__ == "__main__":
         print("Usage: python rotateroutes.py <Security_Gwlb_Endpoint> <Subnet_1_ID> <Subnet_1_ID> <S3_Bucket_Name>")
         sys.exit(1)
 
-    vpcens = sys.argv[1]
-    subnet_id1 = sys.argv[2]
-    subnet_id2 = sys.argv[3]
-    s3name = sys.argv[4]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--vpcendpoint", help="VPC Endpoit for Trend Network Security")
+    parser.add_argument("--subnet1", help="VPC Endpoit for Trend Network Security)
+    parser.add_argument("--subnet2", help="VPC Endpoit for Trend Network Security)
+    parser.add_argument("--s3bucket", help="VPC Endpoit for Trend Network Security)
+    args = parser.parse_args()                                                            
 
-    subnet_ids = [subnet_id1, subnet_id2]
+    subnet_ids = [args.subnet1, args.subnet2]
 
-    main(vpcens, subnet_ids, s3name)
+    if not all(vars(args).values()):
+        parser.print_help()
+        print ("Usage: python3 rotateroutes.py --vpcendpoint <VPC_Endpoint_ID> --subnet1 <Subnet1_ID> --subnet2 <Subnet2_ID> --s3bucket <S3Bucket_Name>")
+        sys.exit(1)
+
+    # Call the main function and pass the arguments
+    main(args.vpcendpoint, subnet_ids, args.s3bucket)
