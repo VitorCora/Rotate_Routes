@@ -82,7 +82,7 @@ def get_region(vpc_id):
     session = boto3.Session()
     client = session.client('ec2')
     # Describe the VPC
-    response = ec2.describe_vpcs(VpcIds=[vpc_id])
+    response = cient.describe_vpcs(VpcIds=[vpc_id])
     # Extract the region from the response metadata
     region = session.region_name
     status = "INFO"
