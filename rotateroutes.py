@@ -302,6 +302,10 @@ def get_s3_endpoints(region):
     return s3_endpoints
 
 def main(vpcens, subnet_ids, s3name):
+    # Variables
+
+    vpces3={}
+    
     current_time = datetime.now().strftime("%Y%m%d%I%M%p")
     filename = "Routechange" + current_time
 
