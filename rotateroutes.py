@@ -89,7 +89,7 @@ def get_region(vpc_id, account_id, filename, s3name):
     message=f"Region acquired, the region ID id {region}."
     print(message)
     log_to_logfile(filename,message,status)
-    upload_to_s3(s3name, filename, account_id, vpcid)
+    upload_to_s3(s3name, filename, account_id, vpc_id)
     return region
   
 def check_vpc_id(vpc_id_0, vpc_id_1, filename):
