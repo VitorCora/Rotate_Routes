@@ -26,10 +26,11 @@ Required libraries (listed in requirements.txt):
 
 ## Installation
 
-Clone the repository:
-
+Clone the repository and open the cloned folder:
+```
 git clone https://github.com/VitorCora/Rotate_Routes.git
 cd Rotate_Routes
+```
 
 ## Install the required packages:
 
