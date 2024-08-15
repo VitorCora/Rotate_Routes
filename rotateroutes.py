@@ -78,7 +78,7 @@ def get_vpc_id(subnet_id):
     vpc_id = subnet['VpcId']
     return vpc_id
 
-def get_region(vpc_id, account_id, filename):
+def get_region(vpc_id, account_id, filename, s3name):
     session = boto3.Session()
     client = session.client('ec2')
     # Describe the VPC
@@ -333,9 +333,10 @@ def main(vpcens, subnet_ids, s3name):
 
     check_nsendpoint(vpcens, filename, account_id, vpcid, s3name)
     
-    region = get_region(vpcid, account_id,filename)
+    region = get_region(vpcid, account_id,filename, s3name)
 
     endpoints = get_s3_endpoints(region)
+    
     for endpoint in endpoints:
         vpces3.append(endpoint['VpcEndpointId'])
       
