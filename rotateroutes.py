@@ -305,6 +305,7 @@ def main(vpcens, subnet_ids, s3name):
     # Variables
 
     vpces3=[]
+    vpces3str=""
     
     current_time = datetime.now().strftime("%Y%m%d%I%M%p")
     filename = "Routechange" + current_time
@@ -345,7 +346,8 @@ def main(vpcens, subnet_ids, s3name):
         vpces3.append(endpoint['VpcEndpointId'])
       
     status = "INFO"
-    message = "The following S3 VPC Endpoints were found :" + vpces3
+    vpces3str=', '.join(map(str,vpces3))
+    message = f"The following S3 VPC Endpoints were found : {vpces3str}"
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)        
