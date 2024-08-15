@@ -109,7 +109,7 @@ def check_vpc_id(vpc_id_0, vpc_id_1, filename):
         log_to_logfile(filename,message,status)
         sys.exit()
 
-def check_nsendpoint(vpcens, filename, account_id, vpcid, s3name):
+def check_nsendpoint(vpcens, filename, account_id, vpc_id, s3name):
     # Create an EC2 client
     ec2 = boto3.client('ec2')
     # Describe the VPC endpoint
@@ -117,25 +117,25 @@ def check_nsendpoint(vpcens, filename, account_id, vpcid, s3name):
     # Get the VPC ID associated with the VPC endpoint
     vpcens_vpc_id = response['VpcEndpoints'][0]['VpcId']
     # Compare the VPC ID with the desired VPC ID
-    if vpcens_vpc_id == vpcid:
+    if vpcens_vpc_id == vpc_id:
         print("VPC endpoint belongs to the right VPC ID.")
         status = "INFO"
-        message="The NS Endpoint belongs to the same VPC as the target Subnets (vpc id="+vpcid+")."
+        message=f"The NS Endpoint belongs to the same VPC as the target Subnets (vpc id={vpc_id})."
         print(message)
         log_to_logfile(filename,message,status)
-        upload_to_s3(s3name, filename, account_id, vpcid)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
     else:
         print("VPC endpoint does not belong to the right VPC ID.")
         status = "INFO"
-        message="The NS Endpoint belongs to a different VPC (Subnets vpc id="+vpcid+"Endpoint vpc id="+vpcens_vpc_id+")."
+        message=f"The NS Endpoint belongs to a different VPC (Subnets vpc id={vpc_id} and Endpoint vpc id={vpcens_vpc_id})."
         print(message)
         log_to_logfile(filename,message,status)
-        upload_to_s3(s3name, filename, account_id, vpcid)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
         status = "ERROR"
         message="Exiting program."
         print(message)
         log_to_logfile(filename,message,status)
-        upload_to_s3(s3name, filename, account_id, vpcid)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
         sys.exit()
 
 def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id):
@@ -320,25 +320,25 @@ def main(vpcens, subnet_ids, s3name):
     #Logfile and logfolder created
     
     check_vpc_id(vpc_id_0, vpc_id_1, filename)
-    vpcid = vpc_id_0
+    vpc_id = vpc_id_0
 
     if vpcens is None:
         status = "ERROR"
         message = "A VPC Endpoint for Network Security wasn't provided."
         print(message)
         log_to_logfile(filename, message, status)
-        upload_to_s3(s3name, filename, account_id, vpcid)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
         sys.exit()
     else:
         status = "INFO"
         message = "A VPC Endpoint for Network Security was provided, vpc id=" + vpcens + "."
         print(message)
         log_to_logfile(filename, message, status)
-        upload_to_s3(s3name, filename, account_id, vpcid)
+        upload_to_s3(s3name, filename, account_id, vpc_id)
 
-    check_nsendpoint(vpcens, filename, account_id, vpcid, s3name)
+    check_nsendpoint(vpcens, filename, account_id, vpc_id, s3name)
     
-    region = get_region(vpcid, account_id,filename, s3name)
+    region = get_region(vpc_id, account_id,filename, s3name)
 
     endpoints = get_s3_endpoints(region)
     
@@ -357,7 +357,7 @@ def main(vpcens, subnet_ids, s3name):
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
-    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpcid)
+    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)
     print(json.dumps(template, indent=4))
 
 if __name__ == "__main__":
