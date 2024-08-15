@@ -78,7 +78,7 @@ def get_vpc_id(subnet_id):
     vpc_id = subnet['VpcId']
     return vpc_id
 
-def get_region(vpc_id):
+def get_region(vpc_id, account_id, filename):
     session = boto3.Session()
     client = session.client('ec2')
     # Describe the VPC
@@ -86,9 +86,10 @@ def get_region(vpc_id):
     # Extract the region from the response metadata
     region = session.region_name
     status = "INFO"
-    message="The VPC IDs are equal."
+    message=f"Region acquired, the region ID id {region}."
     print(message)
     log_to_logfile(filename,message,status)
+    upload_to_s3(s3name, filename, account_id, vpcid)
     return region
   
 def check_vpc_id(vpc_id_0, vpc_id_1, filename):
@@ -332,7 +333,7 @@ def main(vpcens, subnet_ids, s3name):
 
     check_nsendpoint(vpcens, filename, account_id, vpcid, s3name)
     
-    region = get_region(vpcid)
+    region = get_region(vpcid, account_id,filename)
 
     endpoints = get_s3_endpoints(region)
     for endpoint in endpoints:
