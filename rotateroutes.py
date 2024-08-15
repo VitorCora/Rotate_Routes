@@ -78,12 +78,17 @@ def get_vpc_id(subnet_id):
     vpc_id = subnet['VpcId']
     return vpc_id
 
-## Developing
-def get_region(subnet_id):
-    ec2_client = boto3.client('ec2')
-    response = ec2_client.describe_subnets(SubnetIds=[subnet_id])
-    subnet = response['Subnets'][0]
-    Region = subnet['Region']
+def get_region(vpc_id):
+    session = boto3.Session()
+    client = session.client('ec2')
+    # Describe the VPC
+    response = ec2.describe_vpcs(VpcIds=[vpc_id])
+    # Extract the region from the response metadata
+    region = session.region_name
+    status = "INFO"
+    message="The VPC IDs are equal."
+    print(message)
+    log_to_logfile(filename,message,status)
     return region
   
 def check_vpc_id(vpc_id_0, vpc_id_1, filename):
