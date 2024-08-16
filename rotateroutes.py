@@ -16,8 +16,8 @@ def create_templatefile(template,s3name, account_id, vpc_id,current_time):
         file.write(json.dumps(template, indent=4))
     # Close the file
     file.close()
-    uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id)
-    return message
+    urlmessage = uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id)
+    return urlmessage
 
 def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
     # Create an S3 client
@@ -27,7 +27,7 @@ def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
     s3.upload_file(file_path, s3name, folder_key)
     print("AWS CloudFormation template named {file_path} uploaded to S3 bucket.")
     message =f"https://{s3name}.s3.amazonaws.com/{account_id}/{vpc_id}/{file_path}"
-    return message
+    return urlmessage
 
 def create_log_file(filename):
     #Acquire Time
