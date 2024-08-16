@@ -26,7 +26,7 @@ def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
     folder_key = account_id +'/'+ vpc_id+'/'+file_path  
     s3.upload_file(file_path, s3name, folder_key)
     print("AWS CloudFormation template named {file_path} uploaded to S3 bucket.")
-    message =f"https://{s3name}.s3.amazonaws.com/{account_id}/{vpc_id}/{file_path}"
+    urlmessage =f"https://{s3name}.s3.amazonaws.com/{account_id}/{vpc_id}/{file_path}"
     return urlmessage
 
 def create_log_file(filename):
