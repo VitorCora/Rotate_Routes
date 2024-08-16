@@ -78,9 +78,5 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Acknowledgments
 Python - The programming language used for this project.
-Your Security Tool - The tool used for traffic interception.
 Contact
-For questions or support, please open an issue in the GitHub repository or contact me at [your-email@example.com].
-
-
-python3 rotateroutes.py --vpcendpoint=vpce-036d90bd427263372 --subnet1=subnet-063e0838ea01c2200 --subnet2=subnet-0919c23bc6e593883 --s3bucket=nsroutelogs
+For questions or support, please open an issue in the GitHub repository or send me a message at https://www.linkedin.com/in/vitor-cor%C3%A1-930948b0.
