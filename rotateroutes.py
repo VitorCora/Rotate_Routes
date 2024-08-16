@@ -1,4 +1,4 @@
-import argparse
+sageimport argparse
 import sys
 import boto3
 import json
@@ -17,6 +17,7 @@ def create_templatefile(template,s3name, account_id, vpc_id,current_time):
     # Close the file
     file.close()
     uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id)
+    return message
 
 def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
     # Create an S3 client
@@ -25,7 +26,8 @@ def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
     folder_key = account_id +'/'+ vpc_id+'/'+file_path  
     s3.upload_file(file_path, s3name, folder_key)
     print("AWS CloudFormation template named {file_path} uploaded to S3 bucket.")
-    print(f"https://{s3name}.s3.amazonaws.com/{account_id}/{vpc_id}/{file_path}")
+    message =f"https://{s3name}.s3.amazonaws.com/{account_id}/{vpc_id}/{file_path}"
+    return message
 
 def create_log_file(filename):
     #Acquire Time
@@ -381,7 +383,7 @@ def main(vpcens, subnet_ids, s3name):
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
     template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)
-    create_templatefile(template,s3name, account_id, vpc_id,current_time)
+    urlmessage = create_templatefile(template,s3name, account_id, vpc_id,current_time)
     status = "INFO"
     message = f"AWS Cloudformation Template to Rotate Routes uploaded successfully to the s3 bucket {s3name}/{account_id}/{vpc_id}"
     print(message)
@@ -389,6 +391,7 @@ def main(vpcens, subnet_ids, s3name):
     upload_to_s3(s3name, filename, account_id, vpc_id)
     print(json.dumps(template, indent=4))
     print(f"Download your template from:")
+    print(urlmessage)
 
 if __name__ == "__main__":
 
