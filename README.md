@@ -12,9 +12,21 @@ This tool works by creating an AWS Cloudformation template with a copy of the or
 
 Dynamic Route Management: Automatically rotate routes between two specified subnets.
 Traffic Interception: Redirect traffic to a designated security tool for analysis.
-Configurable: Easily modify subnet addresses and security tool endpoints.
 Logging: Keep track of route changes and intercepted traffic for auditing purposes.
 Cross-Platform: Works on Windows, macOS, and Linux.
+
+## Limitations
+
+The program have the following limitations at the moment:
+    - Can only rotate the routes of 2 target subnets, here referenced as source (Public) and destination (Private)
+        - Can be used to rotate the routes of 2 private subnets as well
+    - Works per AZ (need to provide the 2 subnets that will be intercepted)
+    - Not intended for edge deployment
+    - Only applicable for deployments that are using Gateway load balancer, a Gateway Load Balancer endpoint must be provided
+    - customer need to deploy and provide the vpc endpoint id
+    - Works for hosted or customer owned appliance
+    - Customer need to provide an aws S3 bucket for the logging to work
+    - Does not add the S3 VPC endpoints back to the route tables
 
 ## Prerequisites
 
@@ -58,9 +70,15 @@ Topology after the Rotate_Routes program is run:
 
 ![image](https://github.com/user-attachments/assets/3037bdb6-0177-46ad-b05e-fd5abf699025)
 
-
 ## Logging
 The program logs all route changes and intercepted traffic to traffic_log.txt. You can review this file to monitor activities and ensure the program is functioning as expected.
+
+## Roadmap
+
+This project will include the following features in the near future:
+    - Create the Route Table for the Security Endpoint Subnet
+    - Add the option to also intercept the traffic going to the Nat Gateway from the Private subnet
+    - Add the S3 VPC Endpoints to the copied route tables, if any is present in the originals
 
 ## Contributing
 Contributions are welcome! If you'd like to enhance the functionality or fix bugs, please follow these steps:
