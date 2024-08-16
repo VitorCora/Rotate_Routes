@@ -9,14 +9,22 @@ def create_templatefile(template,s3name, account_id, vpc_id,current_time):
     status="INFO"
     #Set message
     message = "AWS CloudFormation file created successfully"
-    file_path = f"TrendNetworkSecurity_NewRoutes{current_time}"
+    file_path = f"TrendNetworkSecurity_NewRoutes{current_time}.json"
     # Open the file in write mode ('w')
     with open(file_path, "w") as file:
         # Write the JSON dictionary to the file
         file.write(json.dumps(template, indent=4))
     # Close the file
     file.close()
-    upload_to_s3(s3name, file_path, account_id, vpc_id)
+    uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id)
+
+def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
+    # Create an S3 client
+    s3 = boto3.client('s3')
+    # Create the folder key with a trailing slash
+    folder_key = account_id +'/'+ vpc_id+'/'+file_path  
+    s3.upload_file(file_path, s3name, folder_key)
+    print("File uploaded to S3 bucket.")
 
 def create_log_file(filename):
     #Acquire Time
