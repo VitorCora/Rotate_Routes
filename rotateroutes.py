@@ -29,7 +29,7 @@ def create_log_file(filename):
     status="INFO"
     #Set message
     message = f"Log file created successfully, named {file_path}"
-    print ("message")
+    print (message)
     # Open the file in write mode ('w')
     with open(file_path, "w") as file:
         # Perform operations on the file
