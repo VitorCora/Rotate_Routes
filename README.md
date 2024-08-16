@@ -48,6 +48,17 @@ python3 rotateroutes.py --vpcendpoint <VPC_Endpoint_ID> --subnet1 <Subnet1_ID> -
 
 The program will start rotating the routes between the two subnets based on the specified interval.
 
+## Example
+
+Topology AS-IS
+
+![image](https://github.com/user-attachments/assets/6e81f796-39fa-4db2-a7c9-085141a2ec9d)
+
+Topology after the Rotate_Routes program is run:
+
+![image](https://github.com/user-attachments/assets/3037bdb6-0177-46ad-b05e-fd5abf699025)
+
+
 ## Logging
 The program logs all route changes and intercepted traffic to traffic_log.txt. You can review this file to monitor activities and ensure the program is functioning as expected.
 
