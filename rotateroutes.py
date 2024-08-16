@@ -4,15 +4,32 @@ import boto3
 import json
 from datetime import datetime
 
-def create_log_file(filename):
+def create_templatefile(template,s3name, account_id, vpc_id):
     #Acquire Time
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     #Set Status
     status="INFO"
     #Set message
-    message = "Log file created successfully"
+    message = "AWS CloudFormation file created successfully"
+    file_path = f"TrendNetworkSecurity_NewRoutes{current_time}"
+    # Open the file in write mode ('w')
+    with open(file_path, "w") as file:
+        # Perform operations on the file
+        file.write(template)
+    # Close the file
+    file.close()
+    upload_to_s3(s3name, file_path, account_id, vpc_id)
+
+def create_log_file(filename):
+    #Acquire Time
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     # Configure logging
     file_path = filename+".log"
+    #Set Status
+    status="INFO"
+    #Set message
+    message = f"Log file created successfully, named {file_path}"
+    print ("message")
     # Open the file in write mode ('w')
     with open(file_path, "w") as file:
         # Perform operations on the file
@@ -352,11 +369,18 @@ def main(vpcens, subnet_ids, s3name):
     upload_to_s3(s3name, filename, account_id, vpc_id)        
   
     status = "INFO"
-    message = "Starting Program for account id=" + account_id
+    message = f"Starting Program for account id={account_id}"
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
     template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)
+    create_templatefile(template,s3name, account_id, vpc_id)
+    status = "INFO"
+    message = f"AWS Cloudformation Template to Rotate Routes uploaded successfully to the s3 bucket {s3name}/{account_id}/{vpc_id}"
+    print(message)
+    log_to_logfile(filename, message, status)
+    upload_to_s3(s3name, filename, account_id, vpc_id)
+    
     print(json.dumps(template, indent=4))
 
 if __name__ == "__main__":
