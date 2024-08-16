@@ -4,9 +4,7 @@ import boto3
 import json
 from datetime import datetime
 
-def create_templatefile(template,s3name, account_id, vpc_id):
-    #Acquire Time
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+def create_templatefile(template,s3name, account_id, vpc_id,current_time):
     #Set Status
     status="INFO"
     #Set message
@@ -14,8 +12,8 @@ def create_templatefile(template,s3name, account_id, vpc_id):
     file_path = f"TrendNetworkSecurity_NewRoutes{current_time}"
     # Open the file in write mode ('w')
     with open(file_path, "w") as file:
-        # Perform operations on the file
-        file.write(json.dumps(template))
+        # Write the JSON dictionary to the file
+        file.write(json.dumps(template, indent=4))
     # Close the file
     file.close()
     upload_to_s3(s3name, file_path, account_id, vpc_id)
@@ -374,7 +372,7 @@ def main(vpcens, subnet_ids, s3name):
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
     template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)
-    create_templatefile(template,s3name, account_id, vpc_id)
+    create_templatefile(template,s3name, account_id, vpc_id,current_time)
     status = "INFO"
     message = f"AWS Cloudformation Template to Rotate Routes uploaded successfully to the s3 bucket {s3name}/{account_id}/{vpc_id}"
     print(message)
