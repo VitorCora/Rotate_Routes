@@ -15,7 +15,7 @@ def create_templatefile(template,s3name, account_id, vpc_id):
     # Open the file in write mode ('w')
     with open(file_path, "w") as file:
         # Perform operations on the file
-        file.write(template)
+        file.write(json.dumps(template))
     # Close the file
     file.close()
     upload_to_s3(s3name, file_path, account_id, vpc_id)
