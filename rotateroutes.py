@@ -198,11 +198,6 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
                     log_to_logfile(filename, message, status)
                     upload_to_s3(s3name, filename, account_id, vpc_id)
                     sys.exit(1)
-            status = "INFO"
-            message = "Subnets are in the same VPC or Availability Zone"
-            print (message)
-            log_to_logfile(filename, message, status)
-            upload_to_s3(s3name, filename, account_id, vpc_id)
         else:
             status = "ERROR"
             message = f"No subnet found with ID {subnet_id}"
@@ -242,7 +237,7 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
         # Add the route table resources to the template
         template["Resources"].update(route_table_resources)
         # Fetch existing routes for the route table
-        existing_routes = get_existing_routes(route_table_id, vpces3)
+        existing_routes = get_existing_routes(route_table_id, vpces3, subnet, filename, s3name, account_id, vpc_id)
         # Add routes from subnet 1 to subnet 2 and vice versa
         route_resources = {
             f"Route{sanitized_subnet_id}": {
@@ -275,7 +270,7 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
     log_to_logfile(filename,message,status)
     return template
 
-def get_existing_routes(route_table_id, vpces3):
+def get_existing_routes(route_table_id, vpces3, subnet, filename, s3name, account_id, vpc_id):
     ec2_client = boto3.client('ec2')
     response = ec2_client.describe_route_tables(
         RouteTableIds=[route_table_id]
@@ -292,6 +287,10 @@ def get_existing_routes(route_table_id, vpces3):
                 and route['VpcEndpointId'] != route.get('GatewayId')
             ):
                 existing_routes.append(route)
+    status = "INFO"
+    message=f"Existing routes copied successfully for route table id {route_table_id}, that belongs to the subnet id {subnet}"
+    print(message)
+    log_to_logfile(filename,message,status)
     return existing_routes
 
 def get_s3_endpoints(region):
