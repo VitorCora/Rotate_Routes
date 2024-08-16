@@ -288,7 +288,7 @@ def get_existing_routes(route_table_id, vpces3, subnet, filename, s3name, accoun
             ):
                 existing_routes.append(route)
     status = "INFO"
-    message=f"Existing routes copied successfully for route table id {route_table_id}, that belongs to the subnet id {subnet}"
+    message=f"Existing routes copied successfully for route table id {route_table_id}, that belongs to the subnet id {subnet['SubnetId']}"
     print(message)
     log_to_logfile(filename,message,status)
     return existing_routes
