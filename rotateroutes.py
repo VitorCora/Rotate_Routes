@@ -24,7 +24,8 @@ def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
     # Create the folder key with a trailing slash
     folder_key = account_id +'/'+ vpc_id+'/'+file_path  
     s3.upload_file(file_path, s3name, folder_key)
-    print("File uploaded to S3 bucket.")
+    print("AWS CloudFormation template named {file_path} uploaded to S3 bucket.")
+    print(f"https://{s3name}.s3.amazonaws.com/{accopunt_id}/{vpc_id}/{file_path}'
 
 def create_log_file(filename):
     #Acquire Time
@@ -386,8 +387,8 @@ def main(vpcens, subnet_ids, s3name):
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
-    
     print(json.dumps(template, indent=4))
+    print(f"Download your template from:")
 
 if __name__ == "__main__":
 
