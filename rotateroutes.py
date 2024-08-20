@@ -25,8 +25,8 @@ def uploadtemplate_to_s3(s3name, file_path, account_id, vpc_id):
     # Create the folder key with a trailing slash
     folder_key = account_id +'/'+ vpc_id+'/'+file_path  
     s3.upload_file(file_path, s3name, folder_key)
-    print("AWS CloudFormation template named {file_path} uploaded to S3 bucket.")
-    urlmessage =f"https://{s3name}.s3.amazonaws.com/{account_id}/{vpc_id}/{file_path}"
+    print("File uploaded to S3 bucket.")
+    urlmessage = f"https://{s3name}.s3.amazonaws.com/{folder_key}"
     return urlmessage
 
 def create_log_file(filename):
@@ -87,7 +87,7 @@ def upload_to_s3(s3name, filename, account_id, vpc_id):
     # Configure logging
     file_path = filename+".log"
     # Create the folder key with a trailing slash
-    folder_key = account_id +'/'+ vpc_id+'/'+file_path  
+    folder_key = account_id +'/'+ vpc_id+'/'+file_path
     s3.upload_file(file_path, s3name, folder_key)
     print("File uploaded to S3 bucket.")
 
@@ -164,13 +164,24 @@ def check_nsendpoint(vpcens, filename, account_id, vpc_id, s3name):
         upload_to_s3(s3name, filename, account_id, vpc_id)
         sys.exit()
 
-def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id):
+def get_vpc_endpoint_subnet_id(vpcens):
+    ec2_client = boto3.client('ec2')
+    response = ec2_client.describe_vpc_endpoints(VpcEndpointIds=[vpcens])
+    if 'VpcEndpoints' in response and len(response['VpcEndpoints']) > 0:
+        vpc_endpoint = response['VpcEndpoints'][0]
+        subnet_id = vpc_endpoint.get('SubnetIds', [])
+        if not subnet_id:
+            raise ValueError(f"No subnets found for VPC endpoint {vpcens}")
+        return subnet_id
+    else:
+        raise ValueError(f"No VPC endpoint found with ID {vpcens}")
+
+def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id, vpcens_subnet_id):
     ec2_client = boto3.client('ec2')
     template = {
         "AWSTemplateFormatVersion": "2010-09-09",
         "Resources": {}
     }
-    vpc_id = None
     availability_zone = None
     for subnet_id in subnet_ids:
         # Remove hyphens from subnet ID
@@ -193,6 +204,7 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
             upload_to_s3(s3name, filename, account_id, vpc_id)
             raise ValueError(message)
             message = "Exiting the program"
+            print (message)
             log_to_logfile(filename, message, status)
             upload_to_s3(s3name, filename, account_id, vpc_id)
             sys.exit(1)
@@ -210,7 +222,13 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
             cidr_block = subnet['CidrBlock']
             subnet_vpc_id = subnet['VpcId']
             subnet_az = subnet['AvailabilityZone']
-            if vpc_id is None:
+            subnet_name = ""
+            if subnet.get('Tags'):
+                for tag in subnet['Tags']:
+                    if tag.get('Key') == 'Name':
+                        subnet_name = tag.get('Value', "")
+                        break
+            if availability_zone is None:
                 vpc_id = subnet_vpc_id
                 availability_zone = subnet_az
             else:
@@ -241,13 +259,21 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
         log_to_logfile(filename, message, status)
         upload_to_s3(s3name, filename, account_id, vpc_id)
         # Create the resources for the route table
+        if subnet_name == "":
+            subnet_name = sanitized_subnet_id
         route_table_resources = {
             f"RouteTableCopy{sanitized_subnet_id}": {
                 "Type": "AWS::EC2::RouteTable",
                 "Properties": {
                     "VpcId": {
                         "Ref": "VpcId"
-                    }
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": f"Security-{subnet_name}-rtb"
+                        }
+                    ]
                 }
             },
             f"RouteTableAssociation{sanitized_subnet_id}": {
@@ -273,16 +299,62 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
                         "Ref": f"RouteTableCopy{sanitized_subnet_id}"
                     },
                     "DestinationCidrBlock": cidr_block,
-                    "VpcEndpointId": vpcen
+                    "VpcEndpointId": vpcens
                 }
             }
-            for vpcen in vpcens
+            #for vpcen in vpcens
         }
         # Add existing routes to the template
         if existing_routes:
             route_resources.update(existing_routes)
         # Add the route resources to the template
         template["Resources"].update(route_resources)
+    # Create Route Table for the Endpoint Subnet
+    for subnet_id in vpcens_subnet_id:
+        # Remove hyphens from subnet ID
+        sanitized_subnet_id = subnet_id.replace("-", "")
+        # Retrieve the route table ID associated with the subnet
+        response = ec2_client.describe_route_tables(
+            Filters=[
+                {
+                    'Name': 'association.subnet-id',
+                    'Values': [subnet_id]
+                }
+            ]
+        )
+        if 'RouteTables' in response and len(response['RouteTables']) > 0:
+            status = "INFO"
+            message = f"Route table found for the Endpoint Subnet (subnet {subnet_id}), it will be overriden"
+            log_to_logfile(filename, message, status)
+            upload_to_s3(s3name, filename, account_id, vpc_id)
+        # Create the resources for the route table
+        route_table_resources = {
+            f"SecurityEndpoint{sanitized_subnet_id}": {
+                "Type": "AWS::EC2::RouteTable",
+                "Properties": {
+                    "VpcId": {
+                        "Ref": "VpcId"
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": "SecurityEndpoint-rtb"
+                        }
+                    ]
+                }
+            },
+            f"RouteTableAssociation{sanitized_subnet_id}": {
+                "Type": "AWS::EC2::SubnetRouteTableAssociation",
+                "Properties": {
+                    "SubnetId": subnet_id,
+                    "RouteTableId": {
+                        "Ref": f"SecurityEndpoint{sanitized_subnet_id}"
+                    }
+                }
+            }
+        }
+        # Add the route table resources to the template
+        template["Resources"].update(route_table_resources)
     # Add VPC ID parameter to the template
     template["Parameters"] = {
         "VpcId": {
@@ -361,6 +433,13 @@ def main(vpcens, subnet_ids, s3name):
         log_to_logfile(filename, message, status)
         upload_to_s3(s3name, filename, account_id, vpc_id)
 
+    vpcens_subnet_id = get_vpc_endpoint_subnet_id(vpcens)        
+    status = "INFO"
+    message = f"The subnet Id where the VPC Endpoint is attached is {vpcens_subnet_id}."
+    print(message)
+    log_to_logfile(filename, message, status)
+    upload_to_s3(s3name, filename, account_id, vpc_id)
+
     check_nsendpoint(vpcens, filename, account_id, vpc_id, s3name)
     
     region = get_region(vpc_id, account_id,filename, s3name)
@@ -382,13 +461,14 @@ def main(vpcens, subnet_ids, s3name):
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
-    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id)
+    template = generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name, account_id, vpc_id, vpcens_subnet_id)
     urlmessage = create_templatefile(template,s3name, account_id, vpc_id,current_time)
     status = "INFO"
     message = f"AWS Cloudformation Template to Rotate Routes uploaded successfully to the s3 bucket {s3name}/{account_id}/{vpc_id}"
     print(message)
     log_to_logfile(filename, message, status)
     upload_to_s3(s3name, filename, account_id, vpc_id)
+    
     print(json.dumps(template, indent=4))
     print(f"Download your template from:")
     print(urlmessage)
