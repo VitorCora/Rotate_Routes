@@ -2,7 +2,68 @@ import argparse
 import sys
 import boto3
 import json
+import logging
 from datetime import datetime
+
+#Clean up lambda
+
+def generate_template_lambda(subnet_ids, subnet_routetable_ids):
+    templatelambdarevert = {
+        "LambdaExecutionRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": "LambdaExecutionPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "ec2:AssociateRouteTable"
+                                    ],
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "RevertRoutesLambda": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Handler": "index.lambda_handler",
+                "Role": {
+                    "Fn::GetAtt": [
+                        "LambdaExecutionRole",
+                        "Arn"
+                    ]
+                },
+                "Code": {
+                    "ZipFile": "import boto3\nimport json\nimport logging\nimport cfnresponse\n\nlogger = logging.getLogger()\nlogger.setLevel(logging.INFO)\n\nec2 = boto3.client('ec2')\n\n\ndef lambda_handler(event, context):\n    logger.info(f\"Received event: {json.dumps(event)}\")\n    \n    request_type = event['RequestType']\n    properties = event['ResourceProperties']\n    \n    subnet_id = properties['Subnet1Id']\n    original_route_table_id = properties['RouteTable1Id']\n    second_subnet_id = properties['Subnet2Id']\n    second_route_table_id = properties['RouteTable2Id']\n    \n    if request_type in ['Create', 'Update']:\n        try:\n            # Perform necessary actions for create/update\n            cfnresponse.send(event, context, cfnresponse.SUCCESS, {})\n        except Exception as e:\n            logger.error(f\"Failed to process {request_type} event: {e}\")\n            cfnresponse.send(event, context, cfnresponse.FAILED, {\"Message\": str(e)})\n    elif request_type == 'Delete':\n        try:\n            # Revert the route table association to the original one\n            ec2.associate_route_table(\n                SubnetId=subnet_id,\n                RouteTableId=original_route_table_id\n            )\n            # Associate the second route table with the second subnet\n            ec2.associate_route_table(\n                SubnetId=second_subnet_id,\n                RouteTableId=second_route_table_id\n            )\n            cfnresponse.send(event, context, cfnresponse.SUCCESS, {})\n        except Exception as e:\n            logger.error(f\"Failed to associate route table: {e}\")\n            cfnresponse.send(event, context, cfnresponse.FAILED, {\"Message\": str(e)})\n"
+                },
+                "Runtime": "python3.8",
+                "Timeout": 300
+            }
+        }
+    }
+    return templatelambdarevert
+
+# Create AWS Cloudformation template and upload
 
 def create_templatefile(template,s3name, account_id, vpc_id,current_time):
     #Set Status
@@ -182,6 +243,7 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
         "AWSTemplateFormatVersion": "2010-09-09",
         "Resources": {}
     }
+    subnet_routetable_ids=[]
     availability_zone = None
     for subnet_id in subnet_ids:
         # Remove hyphens from subnet ID
@@ -197,6 +259,7 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
         )
         if 'RouteTables' in response and len(response['RouteTables']) > 0:
             route_table_id = response['RouteTables'][0]['RouteTableId']
+            subnet_routetable_ids.append(route_table_id)
         else:
             status = "ERROR"
             message = f"No route table found for subnet {subnet_id}"
@@ -355,12 +418,34 @@ def generate_cloudformation_template(subnet_ids, vpcens, filename,vpces3,s3name,
         }
         # Add the route table resources to the template
         template["Resources"].update(route_table_resources)
+    templatelambdarevert = generate_template_lambda (subnet_ids,subnet_routetable_ids)
+    template["Resources"].update(templatelambdarevert)
+    status = "INFO"
+    message="Lambda to revert routes added successfully to the AWS Cloudformation template"
+    print(message)
+    log_to_logfile(filename,message,status)    
     # Add VPC ID parameter to the template
     template["Parameters"] = {
         "VpcId": {
             "Type": "String",
             "Default": vpc_id
-        }
+        },
+        "Subnet1Id": {
+            "Type": "String",
+            "Default": subnet_ids[0]
+        },
+        "RouteTable1Id": {
+            "Type": "String",
+            "Default": subnet_routetable_ids[0]
+        },
+        "Subnet2Id": {
+            "Type": "String",
+            "Default": subnet_ids[1]
+        },
+        "RouteTable2Id": {
+            "Type": "String",
+            "Default": subnet_routetable_ids[1]
+        },
     }
     status = "INFO"
     message="AWS Cloudformation template generated successfuly"
@@ -398,7 +483,7 @@ def get_s3_endpoints(region):
     s3_endpoints = [endpoint for endpoint in endpoints if 's3' in endpoint['ServiceName']]
     return s3_endpoints
 
-def main(vpcens, subnet_ids, s3name):
+def main(vpcens, subnet_ids, s3name, internet):
     # Variables
 
     vpces3=[]
@@ -480,14 +565,15 @@ if __name__ == "__main__":
     parser.add_argument("--subnet1", help="Source Subnet ID - Public Subnet ID")
     parser.add_argument("--subnet2", help="Destination Subnet ID - Private Subnet ID")
     parser.add_argument("--s3bucket", help="S3 bucket where logs will be uploaded to")
+    parser.add_argument("--internet", help="Intercept traffic to the IGw/NGw {YES/NO}", default="NO")
     args = parser.parse_args()                                                            
 
     subnet_ids = [args.subnet1, args.subnet2]
 
     if not all(vars(args).values()):
         parser.print_help()
-        print ("Usage: python3 rotateroutes.py --vpcendpoint <VPC_Endpoint_ID> --subnet1 <Subnet1_ID> --subnet2 <Subnet2_ID> --s3bucket <S3Bucket_Name>")
+        print ("Usage: python3 rotateroutes.py --vpcendpoint <VPC_Endpoint_ID> --subnet1 <Subnet1_ID> --subnet2 <Subnet2_ID> --s3bucket <S3Bucket_Name> --internet <YES/NO>")
         sys.exit(1)
 
     # Call the main function and pass the arguments
-    main(args.vpcendpoint, subnet_ids, args.s3bucket)
+    main(args.vpcendpoint, subnet_ids, args.s3bucket, args.internet)
